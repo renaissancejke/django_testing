@@ -1,43 +1,42 @@
+from datetime import date
+
 import pytest
-from django.core.paginator import Paginator
-from django.urls import reverse
+from django.conf import settings
+from django.utils import timezone
+
+from .conftest import URL
 
 
 @pytest.mark.django_db
-def test_pagination(news_pagination):
-    items_per_page = 10
-    page_number = 2
-    paginator = Paginator(news_pagination, items_per_page)
-    page = paginator.get_page(page_number)
-
-    assert page.has_previous()
-    assert page.has_next()
-    assert len(page) == items_per_page
+def test_news_count_order(client, news_list):
+    response = client.get(URL.home)
+    object_list = list(response.context['object_list'])
+    assert isinstance(object_list[0].date, date)
+    assert object_list == sorted(
+        object_list, key=lambda x: x.date, reverse=True
+    )
 
 
 @pytest.mark.django_db
-def test_news_ordering(date_news):
-    news_list = date_news
-    news_dates = [news.date for news in news_list]
-    assert news_dates == sorted(news_dates, reverse=True)
+def test_news_count_on_home_page(client, news_list):
+    response = client.get(URL.home)
+    object_list = list(response.context['object_list'])
+    assert len(object_list) == settings.NEWS_COUNT_ON_HOME_PAGE
 
 
 @pytest.mark.django_db
-def test_comment_ordering(created_comment):
-    comments = created_comment
-    comment_dates = [comment.created for comment in comments]
-    assert comment_dates == sorted(comment_dates, reverse=False)
+def test_comments_order(client, news, comments_list):
+    response = client.get(URL.detail)
+    assert 'news' in response.context
+    news = response.context['news']
+    all_comments = list(news.comment_set.all())
+    assert isinstance(all_comments[0].created, timezone.datetime)
+    assert all_comments == sorted(all_comments, key=lambda x: x.created)
 
 
 @pytest.mark.django_db
-def test_form_available_for_auth_users(author_client, news):
-    url = reverse('news:detail', args=(news.id,))
-    response = author_client.get(url)
-    assert 'form' in response.context
-
-
-@pytest.mark.django_db
-def test_form_for_notauth_users(client, news):
-    url = reverse('news:detail', args=(news.id,))
-    response = client.get(url)
-    assert 'form' not in response.context
+def test_client_has_form(client, admin_client, news):
+    response = client.get(URL.detail)
+    admin_response = admin_client.get(URL.detail)
+    assert ('form' in admin_response.context)
+    assert ('form' not in response.context)
