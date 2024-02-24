@@ -4,27 +4,27 @@ import pytest
 from django.conf import settings
 from django.utils import timezone
 
-from .conftest import URL
+from news.forms import CommentForm
+from news.pytest_tests.conftest import URL
+
+pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.django_db
 def test_news_count_order(client, news_list):
     response = client.get(URL.home)
-    object_list = list(response.context['object_list'])
-    assert isinstance(object_list[0].date, date)
-    assert object_list == sorted(
-        object_list, key=lambda x: x.date, reverse=True
+    news = list(response.context['object_list'])
+    assert isinstance(news[0].date, date)
+    assert news == sorted(
+        news, key=lambda x: x.date, reverse=True
     )
 
 
-@pytest.mark.django_db
 def test_news_count_on_home_page(client, news_list):
     response = client.get(URL.home)
-    object_list = list(response.context['object_list'])
-    assert len(object_list) == settings.NEWS_COUNT_ON_HOME_PAGE
+    news = list(response.context['object_list'])
+    assert len(news) == settings.NEWS_COUNT_ON_HOME_PAGE
 
 
-@pytest.mark.django_db
 def test_comments_order(client, news, comments_list):
     response = client.get(URL.detail)
     assert 'news' in response.context
@@ -34,9 +34,12 @@ def test_comments_order(client, news, comments_list):
     assert all_comments == sorted(all_comments, key=lambda x: x.created)
 
 
-@pytest.mark.django_db
-def test_client_has_form(client, admin_client, news):
-    response = client.get(URL.detail)
+def test_admin_has_form(admin_client, news):
     admin_response = admin_client.get(URL.detail)
     assert ('form' in admin_response.context)
-    assert ('form' not in response.context)
+    assert isinstance(admin_response.context['form'], CommentForm)
+
+
+def test_anonymous_hasnt_form(client, news):
+    response = client.get(URL.detail)
+    assert 'form' not in response.context

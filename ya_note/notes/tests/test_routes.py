@@ -1,31 +1,15 @@
 from http import HTTPStatus
 
-from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.contrib.auth import get_user, get_user_model
 from django.urls import reverse
-from notes.models import Note
 
-from .core import (ADD, DELETE, DETAIL, EDIT, HOME, LIST, LOGIN, LOGOUT,
-                   SIGNUP, SUCCESS)
+from notes.tests.core import (ADD, DELETE, DETAIL, EDIT, HOME, LIST, LOGIN,
+                              LOGOUT, SIGNUP, SUCCESS, SetUpTestData)
 
 User = get_user_model()
 
 
-class TestRoutes(TestCase):
-
-    @classmethod
-    def setUpTestData(cls):
-        cls.author = User.objects.create(username='author')
-        cls.author_client = Client()
-        cls.author_client.force_login(cls.author)
-        cls.auth_user = User.objects.create(username='auth_user')
-        cls.auth_user_client = Client()
-        cls.auth_user_client.force_login(cls.auth_user)
-        cls.note = Note.objects.create(
-            title='Заголовок',
-            text='Текст',
-            author=cls.author,
-        )
+class TestRoutes(SetUpTestData):
 
     def test_pages_availability_for_anonymous_user(self):
         urls = (
@@ -35,7 +19,7 @@ class TestRoutes(TestCase):
             SIGNUP,
         )
         for name in urls:
-            with self.subTest():
+            with self.subTest(name=name):
                 url = reverse(name)
                 response = self.author_client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -47,7 +31,7 @@ class TestRoutes(TestCase):
             ADD,
         )
         for name in urls:
-            with self.subTest():
+            with self.subTest(name=name):
                 url = reverse(name)
                 response = self.author_client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
@@ -55,7 +39,7 @@ class TestRoutes(TestCase):
     def test_pages_availability_for_different_users(self):
         users_statuses = (
             (self.author_client, HTTPStatus.OK),
-            (self.auth_user_client, HTTPStatus.NOT_FOUND),
+            (self.reader_client, HTTPStatus.NOT_FOUND),
         )
         urls = (
             DETAIL,
@@ -64,7 +48,7 @@ class TestRoutes(TestCase):
         )
         for user, status in users_statuses:
             for name in urls:
-                with self.subTest(user=user, name=name):
+                with self.subTest(user=get_user(user), name=name):
                     url = reverse(name, args=(self.note.slug,))
                     response = user.get(url)
                     self.assertEqual(response.status_code, status)
@@ -80,7 +64,7 @@ class TestRoutes(TestCase):
             (DELETE, (self.note.slug,)),
         )
         for name, args in urls:
-            with self.subTest():
+            with self.subTest(name=name):
                 url = reverse(name, args=args)
                 redirect_url = f'{login_url}?next={url}'
                 response = self.client.get(url)

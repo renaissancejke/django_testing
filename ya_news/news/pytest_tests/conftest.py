@@ -3,10 +3,13 @@ from datetime import datetime, timedelta
 
 import pytest
 from django.conf import settings
+from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from news.models import Comment, News
 from pytest_lazyfixture import lazy_fixture
+
+from news.models import Comment, News
+
 
 PK = 1
 COMMENT_TEXT = 'Текст комментария'
@@ -45,9 +48,10 @@ def author(django_user_model):
 
 
 @pytest.fixture
-def author_client(author, client):
-    client.force_login(author)
-    return client
+def author_client(author):
+    author_client = Client()
+    author_client.force_login(author)
+    return author_client
 
 
 @pytest.fixture
@@ -57,13 +61,8 @@ def news():
 
 
 @pytest.fixture
-def pk_news(news):
-    return (news.pk)
-
-
-@pytest.fixture
 def news_list():
-    news_list = News.objects.bulk_create(
+    News.objects.bulk_create(
         News(
             title=f'Заголовок {i}',
             text='Текст новости',
@@ -71,7 +70,6 @@ def news_list():
         )
         for i in range(settings.NEWS_COUNT_ON_HOME_PAGE + 1)
     )
-    return news_list
 
 
 @pytest.fixture
@@ -94,11 +92,3 @@ def comments_list(author, news):
         )
         comment.created = timezone.now() + timedelta(days=i)
         comment.save()
-    return comments_list
-
-
-@pytest.fixture
-def form_data():
-    return {
-        'text': 'Новый текст комментария',
-    }

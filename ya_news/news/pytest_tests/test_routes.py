@@ -3,7 +3,7 @@ from http import HTTPStatus
 import pytest
 from pytest_django.asserts import assertRedirects
 
-from .conftest import ADMIN, AUTHOR, CLIENT, URL
+from news.pytest_tests.conftest import ADMIN, AUTHOR, CLIENT, URL
 
 
 @pytest.mark.parametrize(
